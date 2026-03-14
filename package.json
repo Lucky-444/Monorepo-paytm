@@ -20,5 +20,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "baseline-browser-mapping": "^2.10.7",
+    "caniuse-lite": "^1.0.30001778"
+  }
 }
