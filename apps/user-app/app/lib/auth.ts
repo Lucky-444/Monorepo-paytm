@@ -1,66 +1,99 @@
 import db from "@repo/db/client";
-import CredentialsProvider from "next-auth/providers/credentials"
+import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
+import { z } from "zod";
+
+const authSchema = z.object({
+  phone: z.string().min(10).max(10),
+  password: z.string().min(6),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+});
 
 export const authOptions = {
-    providers: [
-      CredentialsProvider({
-          name: 'Credentials',
-          credentials: {
-            phone: { label: "Phone number", type: "text", placeholder: "1231231231", required: true },
-            password: { label: "Password", type: "password", required: true }
-          },
-          // TODO: User credentials type from next-aut
-          async authorize(credentials: any) {
-            // Do zod validation, OTP validation here
-            const hashedPassword = await bcrypt.hash(credentials.password, 10);
-            const existingUser = await db.user.findFirst({
-                where: {
-                    number: credentials.phone
-                }
-            });
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        phone: {
+          label: "Phone number",
+          type: "text",
+          placeholder: "1231231231",
+          required: true,
+        },
+        password: { label: "Password", type: "password", required: true },
+        name: { label: "Name", type: "text" },
+        email: { label: "Email", type: "email" },
+      },
 
-            if (existingUser) {
-                const passwordValidation = await bcrypt.compare(credentials.password, existingUser.password);
-                if (passwordValidation) {
-                    return {
-                        id: existingUser.id.toString(),
-                        name: existingUser.name,
-                        email: existingUser.number
-                    }
-                }
-                return null;
-            }
+      async authorize(credentials: any) {
+        const parsedData = authSchema.safeParse(credentials);
 
-            try {
-                const user = await db.user.create({
-                    data: {
-                        number: credentials.phone,
-                        password: hashedPassword
-                    }
-                });
-            
-                return {
-                    id: user.id.toString(),
-                    name: user.name,
-                    email: user.number
-                }
-            } catch(e) {
-                console.error(e);
-            }
-
-            return null
-          },
-        })
-    ],
-    secret: process.env.JWT_SECRET || "secret",
-    callbacks: {
-        // TODO: can u fix the type here? Using any is bad
-        async session({ token, session }: any) {
-            session.user.id = token.sub
-
-            return session
+        if (!parsedData.success) {
+          return null;
         }
-    }
-  }
-  
+
+        const { phone, password, name, email } = parsedData.data;
+
+        const existingUser = await db.user.findFirst({
+          where: {
+            number: phone,
+          },
+        });
+
+        // USER EXISTS → LOGIN FLOW
+        if (existingUser) {
+          const passwordValidation = await bcrypt.compare(
+            password,
+            existingUser.password,
+          );
+
+          if (passwordValidation) {
+            return {
+              id: existingUser.id.toString(),
+              name: existingUser.name,
+              email: existingUser.email,
+            };
+          }
+
+          return null;
+        }
+
+        // USER DOES NOT EXIST → SIGNUP FLOW
+        try {
+          const hashedPassword = await bcrypt.hash(password, 10);
+
+          const user = await db.user.create({
+            data: {
+              number: phone,
+              password: hashedPassword,
+              name: name,
+              email: email,
+            },
+          });
+
+          return {
+            id: user.id.toString(),
+            name: user.name,
+            email: user.email,
+          };
+        } catch (e) {
+          console.error(e);
+        }
+
+        return null;
+      },
+    }),
+  ],
+
+  secret: process.env.JWT_SECRET || "secret",
+
+  callbacks: {
+    async session({ token, session }: any) {
+      if (session?.user) {
+        session.user.id = token.sub;
+      }
+      return session;
+    },
+  },
+};
