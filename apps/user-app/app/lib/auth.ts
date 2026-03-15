@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const authSchema = z.object({
   phone: z.string().min(10).max(10),
-  password: z.string().min(6),
+  password: z.string().min(3),
   name: z.string().optional(),
   email: z.string().email().optional(),
 });
@@ -24,7 +24,10 @@ export const authOptions = {
         password: { label: "Password", type: "password", required: true },
       },
 
+    
+      
       async authorize(credentials: any) {
+        console.log(credentials); // ✅ correct place
         const parsedData = authSchema.safeParse(credentials);
 
         if (!parsedData.success) {
