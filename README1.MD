@@ -30,6 +30,8 @@ npm install
 
 ---
 
+or ~docker start digipay-postgres~
+
 # 3. Start PostgreSQL using Docker
 
 Run PostgreSQL container.

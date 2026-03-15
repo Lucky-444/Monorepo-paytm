@@ -1,6 +1,6 @@
 import db from "@repo/db/client";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -22,8 +22,6 @@ export const authOptions = {
           required: true,
         },
         password: { label: "Password", type: "password", required: true },
-        name: { label: "Name", type: "text" },
-        email: { label: "Email", type: "email" },
       },
 
       async authorize(credentials: any) {
